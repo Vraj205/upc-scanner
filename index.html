@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UPC Scanner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    #scanner {
+      width: 100%;
+      max-width: 500px;
+      margin: 20px auto;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    video {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>UPC Scanner</h1>
+  <p>Use your camera to scan a product barcode and save the UPC below.</p>
+  
+  <div id="scanner"></div>
+  <button id="startScanner">Start Scanner</button>
+  <button id="stopScanner" style="display: none;">Stop Scanner</button>
+  
+  <h2>Scanned UPC Codes</h2>
+  <div id="results">
+    <ul id="upcList"></ul>
+  </div>
+
+  <!-- Add QuaggaJS Library -->
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script>
+    const startScannerButton = document.getElementById('startScanner');
+    const stopScannerButton = document.getElementById('stopScanner');
+    const resultsContainer = document.getElementById('upcList');
+    const scannerDiv = document.getElementById('scanner');
+
+    function startScanner() {
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: scannerDiv, // Where to attach the camera stream
+          constraints: {
+            facingMode: "environment" // Use back camera
+          }
+        },
+        decoder: {
+          readers: ["upc_reader"] // Supports UPC barcodes
+        }
+      }, function(err) {
+        if (err) {
+          console.error(err);
+          alert("Error initializing scanner. Please check your camera permissions.");
+          return;
+        }
+        Quagga.start();
+        startScannerButton.style.display = 'none';
+        stopScannerButton.style.display = 'inline';
+      });
+
+      Quagga.onDetected(function(data) {
+        const code = data.codeResult.code;
+        addUPC(code);
+      });
+    }
+
+    function stopScanner() {
+      Quagga.stop();
+      startScannerButton.style.display = 'inline';
+      stopScannerButton.style.display = 'none';
+    }
+
+    function addUPC(upc) {
+      const listItem = document.createElement('li');
+      listItem.textContent = upc;
+      resultsContainer.appendChild(listItem);
+    }
+
+    startScannerButton.addEventListener('click', startScanner);
+    stopScannerButton.addEventListener('click', stopScanner);
+  </script>
+</body>
+</html>
