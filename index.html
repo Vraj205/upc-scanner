@@ -7,89 +7,95 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
     }
     #scanner {
       width: 100%;
-      max-width: 500px;
-      margin: 20px auto;
-    }
-    #results {
-      margin-top: 20px;
-      padding: 10px;
+      max-width: 600px;
+      height: auto;
       border: 1px solid #ccc;
     }
-    video {
-      width: 100%;
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #stop-button {
+      margin-top: 20px;
+      padding: 10px;
+      font-size: 1em;
+      cursor: pointer;
+      background-color: #ff4d4d;
+      color: white;
+      border: none;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>UPC Scanner</h1>
-  <p>Use your camera to scan a product barcode and save the UPC below.</p>
-  
-  <div id="scanner"></div>
-  <button id="startScanner">Start Scanner</button>
-  <button id="stopScanner" style="display: none;">Stop Scanner</button>
-  
-  <h2>Scanned UPC Codes</h2>
-  <div id="results">
-    <ul id="upcList"></ul>
-  </div>
+  <h1>UPC Barcode Scanner</h1>
+  <video id="scanner"></video>
+  <div id="result">Scan a barcode to get the UPC.</div>
+  <button id="stop-button" style="display:none;" onclick="stopCamera()">Stop Camera</button>
 
-  <!-- Add QuaggaJS Library -->
-  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script src="https://unpkg.com/@zxing/library@0.18.0/umd/index.min.js"></script>
   <script>
-    const startScannerButton = document.getElementById('startScanner');
-    const stopScannerButton = document.getElementById('stopScanner');
-    const resultsContainer = document.getElementById('upcList');
-    const scannerDiv = document.getElementById('scanner');
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+    const videoElement = document.getElementById("scanner");
+    const stopButton = document.getElementById("stop-button");
+    let currentStream = null;
 
-    function startScanner() {
-      Quagga.init({
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: scannerDiv, // Where to attach the camera stream
-          constraints: {
-            facingMode: "environment" // Use back camera
-          }
-        },
-        decoder: {
-          readers: ["upc_reader"] // Supports UPC barcodes
-        }
-      }, function(err) {
-        if (err) {
-          console.error(err);
-          alert("Error initializing scanner. Please check your camera permissions.");
-          return;
-        }
-        Quagga.start();
-        startScannerButton.style.display = 'none';
-        stopScannerButton.style.display = 'inline';
-      });
+    // Modify the constraints for better camera resolution
+    const constraints = {
+      video: {
+        facingMode: "environment", // Use the back camera (for mobile devices)
+        width: { ideal: 1280 },    // Ideal width for better quality
+        height: { ideal: 720 },    // Ideal height for better quality
+      }
+    };
 
-      Quagga.onDetected(function(data) {
-        const code = data.codeResult.code;
-        addUPC(code);
-      });
+    // Start camera
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(function (stream) {
+          currentStream = stream;
+          videoElement.srcObject = stream;
+          videoElement.play();
+          
+          codeReader.decodeFromVideoDevice(null, videoElement, (result, error) => {
+            if (result) {
+              document.getElementById("result").textContent = `UPC Code: ${result.text}`;
+              stopCamera();  // Stop the camera after scanning
+            }
+            if (error) {
+              console.error(error);
+            }
+          });
+        })
+        .catch(function (error) {
+          console.log("Error accessing the camera: ", error);
+        });
     }
 
-    function stopScanner() {
-      Quagga.stop();
-      startScannerButton.style.display = 'inline';
-      stopScannerButton.style.display = 'none';
+    // Stop camera
+    function stopCamera() {
+      if (currentStream) {
+        const tracks = currentStream.getTracks();
+        tracks.forEach(track => track.stop()); // Stop all tracks (video and audio)
+      }
+      videoElement.style.display = "none";  // Hide video element after stopping the camera
+      stopButton.style.display = "none";    // Hide stop button
     }
 
-    function addUPC(upc) {
-      const listItem = document.createElement('li');
-      listItem.textContent = upc;
-      resultsContainer.appendChild(listItem);
-    }
-
-    startScannerButton.addEventListener('click', startScanner);
-    stopScannerButton.addEventListener('click', stopScanner);
+    // Show stop button and start camera on load
+    window.onload = function() {
+      startCamera();
+      stopButton.style.display = "block";  // Show stop button after starting the camera
+    };
   </script>
 </body>
 </html>
